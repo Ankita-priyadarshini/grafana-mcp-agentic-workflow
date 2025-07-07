@@ -9,6 +9,125 @@ The system consists of three main components:
 2. **Backend Service**: Python-based agent with LLM integration
 3. **MCP Server**: Go-based server for Grafana API communication
 
+```mermaid
+graph TB
+    subgraph "User Interface"
+        U[User] --> GP[Grafana Plugin UI]
+    end
+    
+    subgraph "Grafana Instance"
+        GP --> GC[Grafana Core]
+        GC --> GD[(Grafana Database)]
+        GC --> GA[Grafana API]
+    end
+    
+    subgraph "Backend Services"
+        GP <--> BS[Backend Service<br/>Python Agent]
+        BS <--> LLM[LLM Service<br/>Google Gemini]
+        BS <--> R[(Redis Cache)]
+        BS <--> LC[LangChain<br/>Tracing]
+    end
+    
+    subgraph "MCP Layer"
+        BS <--> MCP[MCP Server<br/>Go-based]
+        MCP <--> GA
+        MCP --> ST[Streamable HTTP<br/>Transport]
+    end
+    
+    subgraph "External Services"
+        LLM --> GAPI[Google AI API]
+        LC --> LS[LangSmith<br/>Dashboard]
+        BS --> OAI[OpenAI API<br/>Optional]
+    end
+    
+    subgraph "Infrastructure"
+        subgraph "Docker Environment"
+            R
+            DC[Docker Compose<br/>Services]
+        end
+        
+        subgraph "Development Environment"
+            NJS[Node.js<br/>npm dev server]
+            PY[Python<br/>uv/pip environment]
+            GO[Go Runtime]
+        end
+    end
+    
+    %% Styling
+    classDef userInterface fill:#e1f5fe
+    classDef backend fill:#f3e5f5
+    classDef mcp fill:#e8f5e8
+    classDef external fill:#fff3e0
+    classDef infrastructure fill:#fafafa
+    
+    class U,GP userInterface
+    class BS,LLM,R,LC backend
+    class MCP,ST mcp
+    class GAPI,LS,OAI external
+    class DC,NJS,PY,GO infrastructure
+```
+
+## Data Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant GP as Grafana Plugin
+    participant BS as Backend Service
+    participant LLM as Gemini LLM
+    participant MCP as MCP Server
+    participant GA as Grafana API
+    participant LC as LangChain
+    
+    U->>GP: User Query/Request
+    GP->>BS: Send Request via HTTP
+    BS->>LC: Log Request (Tracing)
+    BS->>LLM: Process with AI
+    LLM-->>BS: AI Response
+    BS->>MCP: Query Grafana Data
+    MCP->>GA: API Call
+    GA-->>MCP: Grafana Data
+    MCP-->>BS: Processed Data
+    BS->>LC: Log Response (Tracing)
+    BS-->>GP: Final Response
+    GP-->>U: Display Results
+```
+
+## Component Deployment Architecture
+
+```mermaid
+graph LR
+    subgraph "Development Environment"
+        subgraph "Terminal 1"
+            T1[npm run dev<br/>Plugin Development]
+        end
+        
+        subgraph "Terminal 2"
+            T2[docker compose up<br/>Infrastructure Services]
+        end
+        
+        subgraph "Terminal 3"
+            T3[uv run backend<br/>Python Agent]
+        end
+        
+        subgraph "Terminal 4"
+            T4[go run MCP server<br/>API Communication]
+        end
+    end
+    
+    subgraph "Runtime Services"
+        T1 --> PS[Plugin Service<br/>:3000]
+        T2 --> DS[Docker Services<br/>Redis, etc.]
+        T3 --> BS[Backend Service<br/>:8000]
+        T4 --> MS[MCP Server<br/>Streamable HTTP]
+    end
+    
+    PS <--> BS
+    BS <--> DS
+    BS <--> MS
+    MS <--> GA[Grafana API]
+```
+
 ## Prerequisites
 
 ### Required Software
@@ -76,15 +195,15 @@ Create a `.env` file in the backend directory with the following configuration:
 
 ```bash
 # Grafana Configuration
-GRAFANA_URL=*************************
-GRAFANA_API_KEY=*******************
+GRAFANA_URL=http://localhost:3000
+GRAFANA_API_KEY=****************************************************
 
 # LLM API Keys
 OPENAI_API_KEY=****************************************************
-GOOGLE_API_KEY=*******************************
+GOOGLE_API_KEY=****************************************************
 
 # LangChain Configuration
-LANGCHAIN_API_KEY=***************************
+LANGCHAIN_API_KEY=****************************************************
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_PROJECT=grafana-agent-debug
 
